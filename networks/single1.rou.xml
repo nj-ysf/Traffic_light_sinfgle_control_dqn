@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+
+    <!-- Types de véhicules -->
+    <vType id="car" vClass="passenger" length="5.0" maxSpeed="13.89" accel="2.6" decel="4.5" sigma="0.5"/>
+    <vType id="truck" vClass="truck" length="10.0" maxSpeed="11.11" accel="1.5" decel="3.5" sigma="0.5"/>
+
+    <!-- Routes possibles -->
+    <!-- Nord (-gneE8) -->
+    <route id="N_to_S" edges="-gneE8 -gneE12"/>
+    <route id="N_to_E" edges="-gneE8 -gneE7"/>
+    <route id="N_to_W" edges="-gneE8 gneE10"/>
+    <!-- Sud (gneE12) -->
+    <route id="S_to_N" edges="gneE12 gneE8"/>
+    <route id="S_to_E" edges="gneE12 -gneE7"/>
+    <route id="S_to_W" edges="gneE12 gneE10"/>
+    <!-- Est (gneE7) -->
+    <route id="E_to_W" edges="gneE7 gneE10"/>
+    <route id="E_to_N" edges="gneE7 gneE8"/>
+    <route id="E_to_S" edges="gneE7 -gneE12"/>
+    <!-- Ouest (-gneE10) -->
+    <route id="W_to_E" edges="-gneE10 -gneE7"/>
+    <route id="W_to_N" edges="-gneE10 gneE8"/>
+    <route id="W_to_S" edges="-gneE10 -gneE12"/>
+
+    <!-- Flux de véhicules -->
+    <!-- Nord (-gneE8) -->
+    <flow id="flow_N_S" type="car" begin="0" end="3600" probability="0.0833" route="N_to_S"/> <!-- 300 veh/h -->
+    <flow id="flow_N_E" type="car" begin="0" end="3600" probability="0.0417" route="N_to_E"/> <!-- 150 veh/h -->
+    <flow id="flow_N_W" type="car" begin="0" end="3600" probability="0.0417" route="N_to_W"/> <!-- 150 veh/h -->
+    <flow id="flow_N_S_truck" type="truck" begin="0" end="3600" probability="0.0083" route="N_to_S"/> <!-- 30 veh/h -->
+
+    <!-- Sud (gneE12) -->
+    <flow id="flow_S_N" type="car" begin="0" end="3600" probability="0.0833" route="S_to_N"/> <!-- 300 veh/h -->
+    <flow id="flow_S_E" type="car" begin="0" end="3600" probability="0.0417" route="S_to_E"/> <!-- 150 veh/h -->
+    <flow id="flow_S_W" type="car" begin="0" end="3600" probability="0.0417" route="S_to_W"/> <!-- 150 veh/h -->
+    <flow id="flow_S_N_truck" type="truck" begin="0" end="3600" probability="0.0083" route="S_to_N"/> <!-- 30 veh/h -->
+
+    <!-- Est (gneE7) -->
+    <flow id="flow_E_W" type="car" begin="0" end="3600" probability="0.0833" route="E_to_W"/> <!-- 300 veh/h -->
+    <flow id="flow_E_N" type="car" begin="0" end="3600" probability="0.0417" route="E_to_N"/> <!-- 150 veh/h -->
+    <flow id="flow_E_S" type="car" begin="0" end="3600" probability="0.0417" route="E_to_S"/> <!-- 150 veh/h -->
+    <flow id="flow_E_W_truck" type="truck" begin="0" end="3600" probability="0.0083" route="E_to_W"/> <!-- 30 veh/h -->
+
+    <!-- Ouest (-gneE10) -->
+    <flow id="flow_W_E" type="car" begin="0" end="3600" probability="0.0833" route="W_to_E"/> <!-- 300 veh/h -->
+    <flow id="flow_W_N" type="car" begin="0" end="3600" probability="0.0417" route="W_to_N"/> <!-- 150 veh/h -->
+    <flow id="flow_W_S" type="car" begin="0" end="3600" probability="0.0417" route="W_to_S"/> <!-- 150 veh/h -->
+    <flow id="flow_W_E_truck" type="truck" begin="0" end="3600" probability="0.0083" route="W_to_E"/> <!-- 30 veh/h -->
+
+</routes>

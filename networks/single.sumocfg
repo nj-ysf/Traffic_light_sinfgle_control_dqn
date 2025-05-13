@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+<input>
+<net-file value="single.net.xml"/>
+   <route-files value="single1.rou.xml"/>
+
+     <!-- <route-files value="heavy_traffic.rou.xml"/>  -->
+
+</input>
+<time>
+<begin value="0"/>
+<end value="86400"/>
+</time>
+<report>
+<verbose value="false"/>
+<no-step-log value="true"/>
+</report>
+</configuration>
