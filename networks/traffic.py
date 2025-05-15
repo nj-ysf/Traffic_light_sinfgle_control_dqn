@@ -7,8 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from collections import namedtuple, deque
 import matplotlib.pyplot as plt
-import os
-import pickle
+
 
 # Use GPU if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -115,14 +114,14 @@ class TrafficLightDQN:
             total_wait = 0
             max_queue = 0
             total_vehicles = 0
-            
+
             for lanes in self.directions.values():
                 for lane in lanes:
                     total_wait += traci.lane.getWaitingTime(lane)
                     queue = traci.lane.getLastStepHaltingNumber(lane)
                     max_queue = max(max_queue, queue)
                     total_vehicles += traci.lane.getLastStepVehicleNumber(lane)
-            
+
             # Normalize the reward components
             reward = - (total_wait / max(1, total_vehicles)) - (max_queue * 0.1)
             return float(reward)
@@ -131,30 +130,83 @@ class TrafficLightDQN:
             return 0.0
 
     def update_traffic_light(self, action, current_phase):
-        new_phase = current_phase
-        duration = 3
         try:
-            if current_phase == 0:  # NS green
-                new_phase = 0 if action == 0 else 1
-                duration = 10 if action == 0 else 3
-            elif current_phase == 1:  # NS yellow
-                new_phase, duration = 4, 3
-            elif current_phase == 4:  # EW green
-                new_phase = 4 if action == 0 else 5
-                duration = 10 if action == 0 else 3
-            elif current_phase == 5:  # EW yellow
-                new_phase, duration = 0, 3
-            else:
-                new_phase, duration = 0, 1
+            # Durées des phases basées sur <tlLogic>
+            phase_durations = {
+                0: 33,  # NS vert principal
+                1: 3,   # NS jaune
+                2: 6,   # NS vert secondaire
+                3: 3,   # NS jaune secondaire
+                4: 33,  # EW vert principal
+                5: 3,   # EW jaune
+                6: 6,   # EW vert secondaire
+                7: 3    # EW jaune secondaire
+            }
+            # Durée minimale et maximale pour prolonger les phases vertes
+            min_green = 15  # Minimum réaliste
+            max_green = 45  # Maximum réaliste
+
+            new_phase = current_phase
+            duration = phase_durations[current_phase]
+
+            if current_phase == 0:  # NS vert principal
+                if action == 0:  # Prolonger
+                    duration = min(max_green, duration + 10)  # Prolonge jusqu'à max 45s
+                    new_phase = 0
+                else:  # Changer
+                    new_phase = 1  # Passe au jaune
+                    duration = phase_durations[1]
+                    
+            elif current_phase == 1:  # NS jaune
+                new_phase = 2  # Passe au vert secondaire
+                duration = phase_durations[2]
                 
+            elif current_phase == 2:  # NS vert secondaire
+                if action == 0:  # Prolonger
+                    duration = min(max_green, duration + 10)
+                    new_phase = 2
+                else:  # Changer
+                    new_phase = 3
+                    duration = phase_durations[3]
+                    
+            elif current_phase == 3:  # NS jaune secondaire
+                new_phase = 4  # Passe à EW vert principal
+                duration = phase_durations[4]
+                
+            elif current_phase == 4:  # EW vert principal
+                if action == 0:  # Prolonger
+                    duration = min(max_green, duration + 10)
+                    new_phase = 4
+                else:  # Changer
+                    new_phase = 5
+                    duration = phase_durations[5]
+                    
+            elif current_phase == 5:  # EW jaune
+                new_phase = 6
+                duration = phase_durations[6]
+                
+            elif current_phase == 6:  # EW vert secondaire
+                if action == 0:  # Prolonger
+                    duration = min(max_green, duration + 10)
+                    new_phase = 6
+                else:  # Changer
+                    new_phase = 7
+                    duration = phase_durations[7]
+                    
+            elif current_phase == 7:  # EW jaune secondaire
+                new_phase = 0  # Retour à NS vert principal
+                duration = phase_durations[0]
+
+            # Appliquer la phase et la durée
             traci.trafficlight.setPhase("gneJ2", new_phase)
             traci.trafficlight.setPhaseDuration("gneJ2", duration)
+            print(f"Phase {new_phase}, Duration {duration}s")  # Log pour débogage
             return new_phase, duration
         except Exception as e:
             print(f"[Error in update_traffic_light] {e}")
             return current_phase, 1
 
-    def train(self, episodes=400, max_steps=1000):
+    def train(self, episodes=1000, max_steps=1000):
         step_counter = 0
         for episode in range(episodes):
             traci.start([
@@ -206,7 +258,6 @@ class TrafficLightDQN:
                   f"Reward: {total_reward:.2f}, "
                   f"Avg Wait: {avg_wait:.2f}, "
                   f"Epsilon: {self.epsilon:.3f}")
-            
 
             if (episode + 1) % 50 == 0:
                 self.save_model()
@@ -217,7 +268,7 @@ class TrafficLightDQN:
     def learn(self):
         if len(self.memory) < self.batch_size:
             return
-            
+
         transitions = self.memory.sample(self.batch_size)
         batch = Transition(*zip(*transitions))
 
@@ -230,7 +281,7 @@ class TrafficLightDQN:
 
         # Current Q values
         state_action_values = self.main_net(state_batch).gather(1, action_batch.unsqueeze(1))
-        
+
         # Expected Q values
         with torch.no_grad():
             next_state_values = self.target_net(next_state_batch).max(1)[0]
@@ -238,7 +289,7 @@ class TrafficLightDQN:
 
         # Compute loss
         loss = self.loss_fn(state_action_values.squeeze(), expected_state_action_values)
-        
+
         # Optimize
         self.optimizer.zero_grad()
         loss.backward()
@@ -247,47 +298,29 @@ class TrafficLightDQN:
         self.optimizer.step()
 
     def save_model(self):
-        model_dir = "models/dqn"
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
-
-        data = {
-            'model_state': self.main_net.state_dict(),
-            'optimizer_state': self.optimizer.state_dict(),
-            'epsilon': self.epsilon,
-            'directions': self.directions,
-            'stats': {
-                'rewards': self.episode_rewards,
-                'waits': self.avg_wait_times
-            }
-        }
-
-        file_path = f"{model_dir}/traffic_model.pth"
-        torch.save(data, file_path)
-        print(f"Model saved at {file_path}")
+        torch.save(self.main_net.state_dict(), "dqn_model.pth")
 
     def plot_results(self):
         plt.figure(figsize=(15, 5))
-        
+
         # Plot rewards
         plt.subplot(1, 2, 1)
         plt.plot(self.episode_rewards)
         plt.title("Rewards per Episode")
         plt.xlabel("Episode")
         plt.ylabel("Total Reward")
-        
+
         # Plot wait times
         plt.subplot(1, 2, 2)
         plt.plot(self.avg_wait_times)
         plt.title("Average Wait Times")
         plt.xlabel("Episode")
         plt.ylabel("Wait Time (s)")
-        
+
         plt.tight_layout()
         plt.savefig("dqn_results.png")
-        plt.show()
 
 if __name__ == "__main__":
     agent = TrafficLightDQN()
     print("=== Starting Training ===")
-    agent.train(episodes=400)
+    agent.train(episodes=1000)
